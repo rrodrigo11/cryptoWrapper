@@ -1,7 +1,3 @@
-//
-//  main.cpp
-//  cryptoWrapper
-//
 // dev: ing. Rodrigo Rayas Solorzano
 // school: ITESO
 // Libsodium library implementation
@@ -86,6 +82,77 @@ ret:
     fclose(fp_t);
     fclose(fp_s);
     return ret;
+}
+
+static int createKey(string passphrase)
+{
+    cout << "\nCreacion de key y nonce...\n";
+
+    unsigned char key[crypto_secretbox_KEYBYTES];
+    unsigned char nonce[crypto_secretbox_NONCEBYTES];
+    unsigned char ciphertext[crypto_secretbox_MACBYTES + 128];
+    unsigned char decrypted[128];
+    crypto_secretbox_keygen(key);
+    randombytes_buf(nonce, sizeof nonce);
+
+    FILE *fp_key, *fp_pass, *fp_nonce;
+    fp_key = fopen("tmp/key.txt", "wb");
+    fwrite(key, 1, sizeof(key), fp_key);
+    fclose(fp_key);
+
+    fp_nonce = fopen("tmp/nonce.txt", "wb");
+    fwrite(nonce, 1, sizeof(nonce), fp_nonce);
+    fclose(fp_nonce);
+
+    unsigned char *val = new unsigned char[passphrase.length() + 1];
+    strcpy((char *)val, passphrase.c_str());
+    crypto_secretbox_easy(ciphertext, val, 128, nonce, key);
+
+    fp_pass = fopen("tmp/password.txt", "wb");
+    fwrite(ciphertext, 1, sizeof(ciphertext), fp_pass);
+    fclose(fp_pass);
+
+    return 0;
+}
+
+static int signFile()
+{
+    cout << "\n Firma de arhivo text,txt en root\n";
+
+    unsigned char pk[crypto_sign_PUBLICKEYBYTES];
+    unsigned char sk[crypto_sign_SECRETKEYBYTES];
+    crypto_sign_keypair(pk, sk);
+
+    unsigned char message[128];
+    FILE *fp_pk, *fp_sk, *fp_signed, *fp_signlen, *fp_message;
+
+    fp_message = fopen("./text.txt", "rb");
+    while (!feof(fp_message))
+    {
+        fread(message, sizeof(message), 1, fp_message);
+    }
+
+    fp_pk = fopen("tmp/pk.txt", "wb");
+    fwrite(pk, 1, sizeof(pk), fp_pk);
+    fclose(fp_pk);
+
+    fp_sk = fopen("tmp/sk.txt", "wb");
+    fwrite(sk, 1, sizeof(sk), fp_sk);
+    fclose(fp_sk);
+
+    unsigned char signed_message[crypto_sign_BYTES + 128];
+    unsigned long long signed_message_len;
+
+    crypto_sign(signed_message, &signed_message_len, message, 128, sk);
+
+    fp_signed = fopen("tmp/signedmessage.txt", "wb");
+    fwrite(signed_message, 1, sizeof(signed_message), fp_signed);
+    fclose(fp_signed);
+
+    fp_signlen = fopen("tmp/signlen.txt", "wb");
+    fwrite(&signed_message_len, 1, sizeof(signed_message_len), fp_signlen);
+    fclose(fp_signlen);
+    return 1;
 }
 
 int main(int argc, char *argv[])
